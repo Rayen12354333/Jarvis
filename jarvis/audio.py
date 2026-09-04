@@ -9,9 +9,9 @@ import sounddevice as sd
 
 from jarvis.config import MAX_RECORDING_S, SAMPLE_RATE, SILENCE_TIMEOUT_S
 
-# Porcupine wants 512-sample frames at 16 kHz (32 ms). We reuse the same frame
-# length for recording so wake.py and audio.py share one audio pipeline shape.
-FRAME_LENGTH = 512
+# openWakeWord wants frames sized in multiples of 80ms. We reuse the same frame
+# length (1280 samples @ 16kHz = 80ms) for recording so wake.py and audio.py
+FRAME_LENGTH = 1280  # 80ms @ 16kHz -- must match wake.FRAME_LENGTH
 
 # Frames below this RMS (int16 scale) count as "silence" for the recorder's
 # stop condition. Tune this after Phase 1 sensitivity testing in a real room.

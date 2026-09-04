@@ -5,7 +5,8 @@ Run with:
 
 Confirms, before writing any real feature code, that:
   1. sounddevice can see at least one microphone.
-  2. the Picovoice access key in .env is valid and the wake keyword loads.
+  2. openWakeWord's models download/load correctly (no signup needed -- see
+     PLAN.md section 2 for why this replaced Porcupine).
   3. the mic actually captures sound (a non-silent peak amplitude).
 
 This does NOT test wake-word detection itself -- that's Phase 1.
@@ -36,20 +37,20 @@ def check_input_devices() -> None:
     print("  OK")
 
 
-def check_porcupine() -> None:
-    print("\n[2/3] Porcupine access key + wake keyword:")
+def check_wake_model() -> None:
+    print("\n[2/3] openWakeWord model (no signup needed):")
     try:
-        from jarvis.config import WAKE_WORD
-        from jarvis.wake import create_porcupine
+        from jarvis.config import WAKE_WORD_MODEL
+        from jarvis.wake import create_wake_model
 
-        porcupine = create_porcupine()
-        print(f"  keyword: '{WAKE_WORD}'")
-        print(f"  frame length: {porcupine.frame_length} samples, sample rate: {porcupine.sample_rate} Hz")
-        porcupine.delete()
+        model = create_wake_model()
+        print(f"  model: '{WAKE_WORD_MODEL}'")
+        print(f"  loaded models: {list(model.models.keys())}")
         print("  OK")
     except Exception as exc:  # noqa: BLE001
-        print(f"  X Porcupine failed to initialize: {exc}")
-        print("    Check PICOVOICE_ACCESS_KEY in .env (free signup: https://console.picovoice.ai)")
+        print(f"  X openWakeWord failed to initialize: {exc}")
+        print("    On Apple Silicon this almost always means ai-edge-litert isn't installed:")
+        print("    pip install ai-edge-litert")
         sys.exit(1)
 
 
@@ -71,6 +72,6 @@ def check_mic_levels(seconds: float = 3.0) -> None:
 
 if __name__ == "__main__":
     check_input_devices()
-    check_porcupine()
+    check_wake_model()
     check_mic_levels()
     print("\nPhase 0 checkpoint passed.")

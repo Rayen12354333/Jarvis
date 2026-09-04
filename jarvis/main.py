@@ -16,7 +16,7 @@ from jarvis.audio import MicStream, record_utterance
 from jarvis.router import dispatch
 from jarvis.speak import speak
 from jarvis.stt import transcribe
-from jarvis.wake import create_porcupine, listen_for_wake_word
+from jarvis.wake import create_wake_model, listen_for_wake_word
 
 
 def run_text_mode(text: str) -> None:
@@ -27,11 +27,11 @@ def run_text_mode(text: str) -> None:
 
 
 def run_voice_loop() -> None:
-    porcupine = create_porcupine()
+    wake_model = create_wake_model()
     with MicStream() as mic:
         print("[jarvis] listening for the wake word...")
         while True:
-            listen_for_wake_word(mic, porcupine)
+            listen_for_wake_word(mic, wake_model)
             print("[jarvis] wake word detected, recording...")
             pcm = record_utterance(mic)
             text = transcribe(pcm)

@@ -25,13 +25,14 @@ def _get(name: str, default: str | None = None, *, required: bool = False) -> st
     return value
 
 
-# --- Wake word ---------------------------------------------------------
-PICOVOICE_ACCESS_KEY = _get("PICOVOICE_ACCESS_KEY", required=True)
-WAKE_WORD = _get("WAKE_WORD", "jarvis")  # must be a Porcupine built-in keyword
-WAKE_SENSITIVITY = float(_get("WAKE_SENSITIVITY", "0.5"))
+# --- Wake word (openWakeWord) ---------------------------------------------
+# No signup, no API key -- see PLAN.md section 2 for why this replaced
+# Porcupine (Picovoice killed its free/non-commercial tier in mid-2026).
+WAKE_WORD_MODEL = _get("WAKE_WORD_MODEL", "hey_jarvis")
+WAKE_THRESHOLD = float(_get("WAKE_THRESHOLD", "0.5"))
 
 # --- Audio ---------------------------------------------------------
-SAMPLE_RATE = 16_000  # Hz -- fixed by Porcupine and what we feed Whisper
+SAMPLE_RATE = 16_000  # Hz -- fixed by openWakeWord and what we feed Whisper
 SILENCE_TIMEOUT_S = 1.0  # stop recording after this much silence
 MAX_RECORDING_S = 8.0  # hard cap on a single utterance
 

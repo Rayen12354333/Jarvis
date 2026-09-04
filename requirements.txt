@@ -5,9 +5,11 @@
 python-dotenv
 numpy
 
-# Wake word
-pvporcupine
+# Wake word -- openWakeWord (no signup/key needed; Picovoice killed its free
+# tier in mid-2026, see PLAN.md section 2). ai-edge-litert is required on
+# Apple Silicon for the tflite backend (onnx has a known bug on macOS ARM64).
 openwakeword
+ai-edge-litert
 
 # Audio
 sounddevice

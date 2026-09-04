@@ -53,12 +53,35 @@ The serious options each failed on something specific:
 | `thevickypedia/Jarvis` | ~254 | Excellent macOS engineering, MIT, 1 open issue. Effectively one maintainer, pinned to Python 3.10/3.11, huge feature surface to strip. **We read this for reference.** |
 | `MycroftAI/mycroft-core`, `rhasspy/rhasspy` | 6.6k / 2.7k | Both formally archived. Ignore tutorials pointing here. |
 
+**Correction, Sept 2026 -- Porcupine is dead for us, switched to openWakeWord.**
+Picovoice discontinued its free/non-commercial tier entirely as of June 30,
+2026 ("focusing on our core business, enterprise deployments... no
+non-commercial tier planned"). Console signup now requires a company email
+and rejects personal addresses outright. That kills the "needs a free
+AccessKey" tradeoff this table originally accepted -- there is no free key
+anymore, at any tier, full stop.
+
+We switched to openWakeWord (already our listed fallback). Two things that
+looked like blockers turned out not to be:
+- It ships a pretrained **"hey jarvis"** model out of the box -- no training
+  needed, no custom phrase work.
+- The Apple Silicon ONNX bug below is still open upstream
+  (dscripka/openWakeWord#336), but current openWakeWord versions default to
+  the **tflite** backend and import `ai_edge_litert.interpreter` directly --
+  no TensorFlow, no hand-written shim. `pip install ai-edge-litert` (which
+  ships real macOS ARM64 wheels, unlike `tflite-runtime`) is the whole fix.
+
+`jarvis/wake.py`, `config.py`, `.env.example`, and `tests/audio_check.py` are
+already updated. `WAKE_WORD` -> `WAKE_WORD_MODEL` (default `hey_jarvis`),
+`WAKE_SENSITIVITY` -> `WAKE_THRESHOLD`. No AccessKey, no signup, nothing in
+`.env` for wake word at all.
+
 **No LLM in the hot path.**
 8 GB unified memory means a resident language model competes with the browser.
 Volume and media commands are deterministic — they get regex matching and a
 keypress. We revisit a small model only for the email summary, in Phase 5.
 
-**Porcupine over openWakeWord.**
+**[Superseded -- see correction above] Porcupine over openWakeWord.**
 openWakeWord ships a pretrained "hey jarvis" model and needs no account, but
 has an open bug where the ONNX backend returns near-zero scores on Apple
 Silicon, so detection silently never fires. The workaround requires installing

@@ -1,42 +1,49 @@
-"""Wake-word detection via Picovoice Porcupine."""
+"""Wake-word detection via openWakeWord.
+
+Replaces the Porcupine-based version from PLAN.md's original Phase 1 --
+Picovoice discontinued its free/non-commercial tier in mid-2026 and now
+requires a company email + paid plan, which isn't viable for a student
+project. See PLAN.md section 2 for the full writeup.
+
+openWakeWord ships a pretrained "hey jarvis" model (close enough to our
+"Jarvis" wake word) and needs no signup or key. On Apple Silicon it defaults
+to the tflite backend via the `ai-edge-litert` package -- the onnx backend has
+a known bug on macOS ARM64 (near-zero scores, see
+https://github.com/dscripka/openWakeWord/issues/336), but tflite via
+ai-edge-litert sidesteps it entirely and is the library's default anyway.
+"""
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-import pvporcupine
+import openwakeword
+from openwakeword.model import Model
 
-from jarvis.config import PICOVOICE_ACCESS_KEY, WAKE_SENSITIVITY, WAKE_WORD
+from jarvis.config import WAKE_THRESHOLD, WAKE_WORD_MODEL
 
 if TYPE_CHECKING:
     from jarvis.audio import MicStream
 
+# openWakeWord wants frames sized in multiples of 80ms. This must match
+# audio.FRAME_LENGTH (1280 samples @ 16kHz = 80ms).
+FRAME_LENGTH = 1280
 
-def create_porcupine() -> pvporcupine.Porcupine:
-    """Build a Porcupine instance for the configured wake word.
 
-    WAKE_WORD must be one of Porcupine's free built-in keywords -- "jarvis"
-    ships by default. See pvporcupine.KEYWORDS for the full list if you want
-    to try a different one.
+def create_wake_model() -> Model:
+    """Build an openWakeWord Model for the configured wake word.
+
+    One-time model download happens automatically on first run (cached under
+    ~/.local/share or similar -- see openwakeword.utils.download_models()).
     """
-    return pvporcupine.create(
-        access_key=PICOVOICE_ACCESS_KEY,
-        keywords=[WAKE_WORD],
-        sensitivities=[WAKE_SENSITIVITY],
-    )
+    openwakeword.utils.download_models()
+    return Model(wakeword_models=[WAKE_WORD_MODEL])
 
 
-def listen_for_wake_word(mic: "MicStream", porcupine: pvporcupine.Porcupine) -> None:
-    """Block until the wake word fires once, consuming frames from `mic`.
-
-    Porcupine fixes frame_length at 512 samples for its published models --
-    this should always match audio.FRAME_LENGTH. The assert catches a mismatch
-    early instead of silently never triggering.
-    """
-    assert porcupine.frame_length == 512, (
-        f"Porcupine frame_length is {porcupine.frame_length}, expected 512 -- "
-        "check audio.FRAME_LENGTH matches."
-    )
+def listen_for_wake_word(mic: "MicStream", model: Model) -> None:
+    """Block until the wake word fires once, consuming frames from `mic`."""
     while True:
         frame = mic.read_frame()
-        if porcupine.process(frame) >= 0:
+        prediction = model.predict(frame)
+        score = prediction.get(WAKE_WORD_MODEL, 0.0)
+        if score >= WAKE_THRESHOLD:
             return
