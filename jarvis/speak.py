@@ -10,6 +10,8 @@ from __future__ import annotations
 import subprocess
 import threading
 
+from jarvis.config import VOICE_NAME
+
 _lock = threading.Lock()
 _speaking = threading.Event()
 
@@ -20,9 +22,14 @@ def is_speaking() -> bool:
 
 
 def speak(text: str, *, voice: str | None = None, blocking: bool = False) -> None:
-    """Speak `text` aloud. Runs in a background thread unless blocking=True."""
+    """Speak `text` aloud. Runs in a background thread unless blocking=True.
+
+    `voice` overrides VOICE_NAME (jarvis/config.py, set via .env) for this one
+    call; leave both unset to use the system default voice.
+    """
     if not text:
         return
+    voice = voice or VOICE_NAME
 
     def _run() -> None:
         with _lock:

@@ -40,5 +40,11 @@ MAX_RECORDING_S = 8.0  # hard cap on a single utterance
 WHISPER_MODEL = _get("WHISPER_MODEL", "base.en")
 WHISPER_COMPUTE_TYPE = _get("WHISPER_COMPUTE_TYPE", "int8")
 
+# --- Text-to-speech ---------------------------------------------------------
+# macOS voice name for `say` (e.g. "Daniel", "Samantha"). Run `say -v ?` in a
+# real Terminal to list every voice installed on this Mac. Leave unset to use
+# the system default voice.
+VOICE_NAME = _get("VOICE_NAME", None)
+
 # --- Logging ---------------------------------------------------------
 LOG_DIR = Path(os.path.expanduser("~/Library/Logs/jarvis"))
