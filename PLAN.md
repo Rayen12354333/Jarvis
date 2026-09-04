@@ -13,7 +13,7 @@ summaries, and a daily academic briefing.
 ## 1. Scope
 
 ### In scope
-1. **Voice-controlled system/media control** — wake word "Jarvis", volume up/down,
+1. **Voice-controlled system/media control** — wake word "hey jarvis", volume up/down,
    play/pause, mute. Must work from across the room. Controls whatever is
    actually playing, not a specific app.
 2. **Email summarization** — spoken summary of unread Gmail: sender, topic,
@@ -29,7 +29,7 @@ persona customization.
 ### Non-functional requirements
 | Requirement | How we meet it |
 |---|---|
-| Hands-free wake word | Porcupine always-on listener, no hotkey |
+| Hands-free wake word | openWakeWord always-on listener, no hotkey |
 | Ignores background noise | Wake word gate + Whisper confidence threshold |
 | Fast simple commands | Regex fast-path, no LLM in the hot loop |
 | Local-first / private | Wake word, STT, and TTS all run on-device |
@@ -128,8 +128,8 @@ demand), TTS 0 MB (macOS `say`), app ~100 MB. Under 400 MB total.
 mic stream (16 kHz)
       │
       ▼
-[ wake word ]  Porcupine — always on, ~10 MB
-      │  detected "Jarvis"
+[ wake word ]  openWakeWord — always on, ~10 MB
+      │  detected "hey jarvis"
       ▼
 [ recorder ]   capture until ~1s silence, max 8s
       │
@@ -157,7 +157,7 @@ jarvis/
 │   ├── main.py           # entry point, the loop
 │   ├── config.py         # env vars, constants
 │   ├── audio.py          # mic stream, recorder, VAD
-│   ├── wake.py           # Porcupine wrapper
+│   ├── wake.py           # openWakeWord wrapper -- wake phrase is "hey jarvis"
 │   ├── stt.py            # Whisper wrapper
 │   ├── speak.py          # TTS
 │   ├── router.py         # registry + dispatch
@@ -203,16 +203,16 @@ Rules:
 ### Libraries we depend on
 | What | Package | Link |
 |---|---|---|
-| Wake word | `pvporcupine` | https://github.com/Picovoice/porcupine |
+| Wake word | `openwakeword` | https://github.com/dscripka/openWakeWord |
 | Speech-to-text | `faster-whisper` | https://github.com/SYSTRAN/faster-whisper |
 | Mic capture | `sounddevice` | https://github.com/spatialaudio/python-sounddevice |
 | Menu bar app | `rumps` | https://github.com/jaredks/rumps |
 | Media keys | `pyobjc` | https://github.com/ronaldoussoren/pyobjc |
 | Gmail (Phase 5) | `google-api-python-client` | https://github.com/googleapis/google-api-python-client |
 | SUIS scraping (Phase 6) | `selenium` | https://github.com/SeleniumHQ/selenium |
-| Fallback wake word | `openwakeword` | https://github.com/dscripka/openWakeWord |
 
-AccessKey signup (free): https://console.picovoice.ai
+No signup, no AccessKey -- `pvporcupine` (Picovoice) was the original pick but
+was dropped, see corrections in section 2.
 
 ### Reference repos — read, don't clone
 | Repo | Read it for |
@@ -236,18 +236,18 @@ next phase until the checkpoint passes on **both** machines.
   Accessibility, and Automation. macOS grants permissions to the parent
   process, so a script run from VS Code's terminal inherits VS Code's
   permissions, not Terminal's.
-- Picovoice AccessKey in `.env`
+- No AccessKey needed -- openWakeWord's model downloads automatically on first run.
 
-**Checkpoint:** `tests/audio_check.py` lists the mic, prints Porcupine's
-keyword list, and reports a non-silent peak amplitude.
+**Checkpoint:** `tests/audio_check.py` lists the mic, prints the loaded
+openWakeWord model + inference backend, and reports a non-silent peak amplitude.
 
 ### Phase 1 — Wake word listener
-- `wake.py`: continuous 16 kHz stream into Porcupine
+- `wake.py`: continuous 16 kHz stream into openWakeWord
 - Console beep + log line on detection
 - Sensitivity tuning; test from 3–4 m across the room
 - False-positive log over a normal working day
 
-**Checkpoint:** Detects "Jarvis" reliably from across the room; fewer than ~2
+**Checkpoint:** Detects "hey jarvis" reliably from across the room; fewer than ~2
 false fires per hour of background conversation.
 
 ### Phase 2 — Listen, transcribe, route

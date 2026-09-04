@@ -8,7 +8,7 @@ The full design doc, phase-by-phase plan, and the reasoning behind every
 decision (why Porcupine, why no LLM in the hot path, why we didn't just fork
 an existing Jarvis repo) lives in **[PLAN.md](./PLAN.md)**. Read that first.
 
-**Status:** Phase 0 — environment setup.
+**Status:** Phase 1 — wake-word listener (code done, real-world tuning in progress).
 
 ## Quickstart
 
@@ -24,7 +24,8 @@ pip install -r requirements.txt
 
 # 3. Secrets
 cp .env.example .env
-# then edit .env and add PICOVOICE_ACCESS_KEY (free: https://console.picovoice.ai)
+# openWakeWord needs no signup or key -- the defaults in .env.example just work.
+# Fill in GOOGLE_OAUTH_CLIENT_SECRET_PATH / SUIS_* later, for Phase 5/6 only.
 
 # 4. Phase 0 checkpoint
 python tests/audio_check.py
@@ -46,6 +47,13 @@ python -m jarvis.main
 python -m jarvis.main --text "what time is it"
 ```
 
+Say **"hey jarvis"** -- that's the exact phrase openWakeWord's pretrained model
+listens for, not just "jarvis". You should hear a beep and see a "heard: ..."
+line. Too many false fires, or missed detections from across the room? Tune
+`WAKE_THRESHOLD` in `.env` (higher = fewer false positives, lower = more
+sensitive) and rerun. Every detection (real or false) is logged to
+`~/Library/Logs/jarvis/jarvis.log`.
+
 ## Project layout
 
 ```
@@ -54,7 +62,7 @@ jarvis/
 │   ├── main.py           # entry point, the loop
 │   ├── config.py         # env vars, constants
 │   ├── audio.py          # mic stream, recorder
-│   ├── wake.py           # Porcupine wrapper
+│   ├── wake.py           # openWakeWord wrapper -- wake phrase is "hey jarvis"
 │   ├── stt.py            # Whisper wrapper
 │   ├── speak.py          # TTS (macOS `say`)
 │   ├── router.py         # handler registry + dispatch
