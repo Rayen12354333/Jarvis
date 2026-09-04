@@ -80,7 +80,15 @@ def run_voice_loop() -> None:
             print(f"[jarvis] heard: {text!r}")
             reply = dispatch(text)
             if reply:
-                speak(reply)
+                # Mic input (16kHz) and Kokoro's playback output (24kHz) fight
+                # over the same CoreAudio device on a MacBook's built-in
+                # mic/speakers -- running both streams at once causes audible
+                # crackling on the reply. Pause the mic stream while Jarvis
+                # talks, resume once it's done. This also happens to fix the
+                # Phase 1 self-hearing/re-trigger risk noted in speak.py.
+                mic.stop()
+                speak(reply, blocking=True)
+                mic.start()
 
 
 def main() -> None:
