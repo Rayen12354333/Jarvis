@@ -39,11 +39,16 @@ def create_wake_model() -> Model:
     return Model(wakeword_models=[WAKE_WORD_MODEL])
 
 
-def listen_for_wake_word(mic: "MicStream", model: Model) -> None:
-    """Block until the wake word fires once, consuming frames from `mic`."""
+def listen_for_wake_word(mic: "MicStream", model: Model) -> float:
+    """Block until the wake word fires once, then return its score.
+
+    The caller (jarvis/main.py) logs this score on every detection -- real
+    hits and false positives alike -- which is what Phase 1's sensitivity
+    tuning and false-positive tracking (PLAN.md section 5) actually run on.
+    """
     while True:
         frame = mic.read_frame()
         prediction = model.predict(frame)
         score = prediction.get(WAKE_WORD_MODEL, 0.0)
         if score >= WAKE_THRESHOLD:
-            return
+            return score
