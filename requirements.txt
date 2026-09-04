@@ -7,8 +7,17 @@ numpy
 
 # Wake word -- openWakeWord (no signup/key needed; Picovoice killed its free
 # tier in mid-2026, see PLAN.md section 2). ai-edge-litert is required on
-# Apple Silicon for the tflite backend (onnx has a known bug on macOS ARM64).
-openwakeword
+# Apple Silicon for the tflite backend (onnx has a known, unfixed bug that
+# returns near-zero scores on macOS ARM64 -- see PLAN.md section 2,
+# correction #2, and https://github.com/dscripka/openWakeWord/issues/336).
+#
+# Installed from GitHub, not PyPI: PyPI's release (0.6.0, Feb 2024) still
+# imports the old `tflite_runtime` package, which has no macOS wheel at all,
+# so on a Mac it silently falls back to onnxruntime -- which is exactly the
+# broken backend above. The `main` branch was switched to import
+# `ai-edge-litert` instead (real macOS ARM64 wheels) but that fix has never
+# been cut into a PyPI release, so we pin the commit that has it.
+openwakeword @ git+https://github.com/dscripka/openWakeWord.git@368c03716d1e92591906a84949bc477f3a834455
 ai-edge-litert
 
 # Audio

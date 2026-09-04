@@ -46,6 +46,26 @@ def check_wake_model() -> None:
         model = create_wake_model()
         print(f"  model: '{WAKE_WORD_MODEL}'")
         print(f"  loaded models: {list(model.models.keys())}")
+
+        # Which inference backend actually loaded matters: on Apple Silicon,
+        # onnxruntime has a known, unfixed bug that returns near-zero wake-word
+        # scores no matter what you say (openWakeWord issue #336). If tflite/
+        # ai-edge-litert failed to import, openWakeWord silently falls back to
+        # onnxruntime and this script would otherwise still print "OK".
+        backend = type(model.models[WAKE_WORD_MODEL]).__module__
+        if "onnxruntime" in backend:
+            print(f"  X backend in use: {backend}")
+            print("    openWakeWord silently fell back to onnxruntime, which has a known bug")
+            print("    on Apple Silicon that returns near-zero scores for every prediction")
+            print("    (https://github.com/dscripka/openWakeWord/issues/336). Wake-word")
+            print("    detection will look like it 'works' here but will never actually fire.")
+            print("    Fix: reinstall openwakeword from the pinned GitHub commit in")
+            print("    requirements.txt (not the stale PyPI release) and make sure")
+            print("    ai-edge-litert is installed:")
+            print("      pip uninstall -y openwakeword")
+            print("      pip install -r requirements.txt")
+            sys.exit(1)
+        print(f"  backend: {backend}")
         print("  OK")
     except Exception as exc:  # noqa: BLE001
         print(f"  X openWakeWord failed to initialize: {exc}")

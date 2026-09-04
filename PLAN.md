@@ -76,6 +76,33 @@ already updated. `WAKE_WORD` -> `WAKE_WORD_MODEL` (default `hey_jarvis`),
 `WAKE_SENSITIVITY` -> `WAKE_THRESHOLD`. No AccessKey, no signup, nothing in
 `.env` for wake word at all.
 
+**Correction #2, Sept 2026 -- the claim above ("current openWakeWord
+versions default to tflite/ai_edge_litert, `pip install ai-edge-litert` is
+the whole fix") was wrong, and `tests/audio_check.py` caught it in the wild:**
+the checkpoint passed but logged
+`WARNING:root:Tried to import the tflite runtime, but it was not found.
+Trying to switching to onnxruntime instead`. Traced it to the source: the
+PyPI release (`0.6.0`, Feb 2024 -- 2.5 years stale) still imports the old
+`tflite_runtime` package, which has no macOS wheel at all, so on a Mac it
+*always* fails and falls back to onnxruntime -- silently, regardless of
+whether `ai-edge-litert` is installed. `ai_edge_litert.interpreter` is only
+imported on the unreleased `main` branch; there's no PyPI release with the
+fix.
+
+This isn't cosmetic. Issue #336 (still open) confirms onnxruntime returns
+near-zero scores for every prediction on Apple Silicon, target speech
+included -- tflite gives 0.998, onnx gives ~1e-05 on the same audio. Left
+alone, Phase 1 would have looked like it "works" (model loads, script says
+OK) and then just never fired, with sensitivity tuning unable to fix it.
+
+Fix: `requirements.txt` now installs openWakeWord straight from the GitHub
+commit that has the `ai_edge_litert` import
+(`git+https://github.com/dscripka/openWakeWord.git@368c03716d1e92591906a84949bc477f3a834455`),
+not from PyPI. `tests/audio_check.py` now also asserts which backend
+actually loaded and fails loudly if it's onnxruntime, instead of only
+checking that the model dict has keys -- so this can't silently regress
+again.
+
 **No LLM in the hot path.**
 8 GB unified memory means a resident language model competes with the browser.
 Volume and media commands are deterministic — they get regex matching and a
