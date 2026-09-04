@@ -40,11 +40,11 @@ MAX_RECORDING_S = 8.0  # hard cap on a single utterance
 WHISPER_MODEL = _get("WHISPER_MODEL", "base.en")
 WHISPER_COMPUTE_TYPE = _get("WHISPER_COMPUTE_TYPE", "int8")
 
-# --- Text-to-speech ---------------------------------------------------------
-# macOS voice name for `say` (e.g. "Daniel", "Samantha"). Run `say -v ?` in a
-# real Terminal to list every voice installed on this Mac. Leave unset to use
-# the system default voice.
-VOICE_NAME = _get("VOICE_NAME", None)
+# --- Text-to-speech (Kokoro-82M, via kokoro-mlx) ---------------------------
+# Kokoro voice id, e.g. "am_adam" (American male), "bm_lewis" (British male).
+# Full list: https://github.com/gabrimatic/kokoro-mlx
+VOICE_NAME = _get("VOICE_NAME", "am_adam")
+VOICE_SPEED = float(_get("VOICE_SPEED", "1.0"))  # >1 faster, <1 slower
 
 # --- Logging ---------------------------------------------------------
 LOG_DIR = Path(os.path.expanduser("~/Library/Logs/jarvis"))

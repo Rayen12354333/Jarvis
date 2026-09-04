@@ -26,6 +26,11 @@ sounddevice
 # Speech-to-text
 faster-whisper
 
+# Text-to-speech -- Kokoro-82M via MLX, Apple Silicon only. Free, local,
+# no signup (macOS `say` was the original Phase 2 pick; Kokoro replaced it
+# for a far more natural voice, see PLAN.md).
+kokoro-mlx
+
 # macOS menu bar app + media keys (Phase 3/4)
 rumps
 pyobjc
