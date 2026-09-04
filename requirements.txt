@@ -1,0 +1,32 @@
+# Unpinned for the first install. Once it's working on one machine, run
+# `pip freeze > requirements.txt` and commit the pinned version for the
+# other machine to match (see PLAN.md section 7, Environment parity).
+
+python-dotenv
+numpy
+
+# Wake word
+pvporcupine
+openwakeword
+
+# Audio
+sounddevice
+
+# Speech-to-text
+faster-whisper
+
+# macOS menu bar app + media keys (Phase 3/4)
+rumps
+pyobjc
+
+# Phase 5 -- Gmail
+google-api-python-client
+google-auth-httplib2
+google-auth-oauthlib
+
+# Phase 6 -- SUIS
+selenium
+
+# Dev
+pytest
+ruff
