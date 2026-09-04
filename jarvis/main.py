@@ -64,6 +64,15 @@ def run_voice_loop() -> None:
             _beep()
             log.info("wake word detected (score=%.3f)", score)
             print("[jarvis] wake word detected, recording...")
+            # openWakeWord keeps a rolling prediction buffer per wakeword across
+            # calls (see openwakeword/model.py's Model.reset()). Without clearing
+            # it here, residual state from the tail of the utterance that just
+            # triggered detection can immediately re-trigger a second (or third,
+            # fourth...) detection with no new speech behind it -- seen as bursts
+            # of several "wake word detected" log lines within ~100ms of each
+            # other. Reset right after each detection so the next check starts
+            # clean.
+            wake_model.reset()
             pcm = record_utterance(mic)
             text = transcribe(pcm)
             if not text:
