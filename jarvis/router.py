@@ -40,14 +40,18 @@ def handler(pattern: str, *, name: str) -> Callable[[HandlerFunc], HandlerFunc]:
 
 
 def dispatch(text: str) -> str | None:
-    """Run the first matching handler on `text`. Returns its spoken reply, or None."""
+    """Run the first matching handler on `text`, falling back to the LLM
+    (jarvis/llm.py) if nothing matches. Returns the spoken reply, or None.
+    """
     for h in _handlers:
         match = h.pattern.search(text)
         if match:
             print(f"[router] '{text}' -> {h.name}")
             return h.func(match, text)
-    print(f"[router] '{text}' matched no handler")
-    return None
+    print(f"[router] '{text}' matched no handler, falling back to LLM")
+    from jarvis.llm import ask_llm  # imported here so google-genai is only a
+                                     # hard dependency for people using this
+    return ask_llm(text)
 
 
 def registered_handlers() -> list[str]:

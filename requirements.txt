@@ -31,6 +31,9 @@ faster-whisper
 # for a far more natural voice, see PLAN.md).
 kokoro-mlx
 
+# LLM fallback (Gemini, free tier -- no signup cost, see PROGRESS.md)
+google-genai
+
 # macOS menu bar app + media keys (Phase 3/4)
 rumps
 pyobjc

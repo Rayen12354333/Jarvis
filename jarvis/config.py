@@ -46,5 +46,14 @@ WHISPER_COMPUTE_TYPE = _get("WHISPER_COMPUTE_TYPE", "int8")
 VOICE_NAME = _get("VOICE_NAME", "am_adam")
 VOICE_SPEED = float(_get("VOICE_SPEED", "1.0"))  # >1 faster, <1 slower
 
+# --- LLM fallback (Gemini) ---------------------------------------------
+# Used only when no regex handler in router.py matches -- known commands
+# (time, volume, etc.) never touch this, so they stay fast and free. Picked
+# Gemini over Claude/GPT for the free tier: 1500 requests/day, no credit
+# card (aistudio.google.com/apikey). See PROGRESS.md for the cost/model
+# comparison this was based on.
+GEMINI_API_KEY = _get("GEMINI_API_KEY")
+GEMINI_MODEL = _get("GEMINI_MODEL", "gemini-2.5-flash-lite")
+
 # --- Logging ---------------------------------------------------------
 LOG_DIR = Path(os.path.expanduser("~/Library/Logs/jarvis"))

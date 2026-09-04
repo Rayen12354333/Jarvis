@@ -20,6 +20,11 @@ just the running diff on top of it.
 - **Phase 2 (listen → transcribe → route → speak):** done. Full loop works:
   say "hey jarvis", say a command, faster-whisper transcribes it, router
   dispatches to a handler, Kokoro speaks the reply back.
+- **LLM fallback layer (Gemini):** added. `router.dispatch()` now calls
+  Gemini when no regex handler matches, instead of just giving up. Pending:
+  user needs to paste a real `GEMINI_API_KEY` into `.env` and test it live —
+  not yet confirmed working end-to-end (code is written, untested with a
+  real key as of this entry).
 - **Phase 3 (media control — volume/play/pause/next/previous):** not started.
   This is the next step.
 - **Phases 4-7 (menu bar app, Gmail, SUIS briefing, extras):** not started.
@@ -32,6 +37,8 @@ WHISPER_MODEL=base.en
 WHISPER_COMPUTE_TYPE=int8
 VOICE_NAME=am_adam           # Kokoro voice id (American male)
 VOICE_SPEED=1.0              # normal speed for now, will revisit later
+GEMINI_API_KEY=              # get free at aistudio.google.com/apikey
+GEMINI_MODEL=gemini-2.5-flash-lite
 ```
 
 ### Stack decisions that differ from the original PLAN.md write-up
@@ -66,6 +73,46 @@ VOICE_SPEED=1.0              # normal speed for now, will revisit later
 ---
 
 ## Session log (newest first)
+
+### feat(llm): add Gemini fallback layer for unmatched commands
+Added an LLM layer so Jarvis isn't limited to the fixed regex handlers in
+`handlers/*.py` -- when `router.dispatch()` finds no matching handler, it
+now calls out to an LLM instead of just logging "matched no handler" and
+doing nothing.
+
+**Model/provider decision:** compared Claude Haiku ($1/$5 per M input/output
+tokens), OpenAI GPT-5 Nano ($0.20/$1.25), and Google Gemini 2.5 Flash-Lite
+($0.10/$0.40, AND a genuine free tier -- 1500 requests/day, no credit card,
+via aistudio.google.com/apikey). Went with Gemini: free tier comfortably
+covers Jarvis's realistic fallback volume (10-50 requests/day), consistent
+with the project's running "avoid paid signups where possible" pattern
+(openWakeWord over Porcupine, Kokoro over paid TTS). Traded off: Google may
+use free-tier prompts for training, no uptime SLA -- acceptable for a
+personal assistant with no sensitive data flowing through it. If Gemini's
+answers feel insufficient later, user may switch to Claude (~$1-2/month
+estimated for this usage pattern) -- see git history/chat for that cost
+comparison if resurrecting the decision.
+
+**What changed:**
+- `jarvis/llm.py` (new) -- lazy-loaded Gemini client (`google-genai` SDK),
+  `ask_llm(text)` sends the transcribed utterance with a short system
+  prompt ("Jarvis, 1-2 sentences, no markdown -- gets spoken via TTS") and
+  returns the reply, or `None` on any failure (never crashes the voice
+  loop on a bad API call).
+- `jarvis/router.py` -- `dispatch()` now imports and calls `ask_llm()` as
+  the last step instead of returning `None` when nothing matches. Import is
+  local to that branch so `google-genai` isn't a hard dependency for
+  anything that doesn't hit the fallback path.
+- `jarvis/config.py` / `.env.example` / `.env` -- added `GEMINI_API_KEY`
+  (blank until user pastes a real one) and `GEMINI_MODEL` (default
+  `gemini-2.5-flash-lite`).
+- `requirements.txt` -- added `google-genai`.
+
+**Not yet done:** user hasn't pasted a real API key in yet, so this is
+untested end-to-end. Next real step here is getting a key from
+aistudio.google.com/apikey, running `pip install -r requirements.txt`, and
+testing with something like `python -m jarvis.main --text "tell me a fun fact"`
+(a phrase no regex handler matches, to force the fallback path).
 
 ### fix(main): pause mic stream while Jarvis speaks — commit `7f89a7c`
 Real-world testing surfaced audible crackling during Kokoro's replies. Root
