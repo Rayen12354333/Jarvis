@@ -14,6 +14,7 @@ ai-edge-litert sidesteps it entirely and is the library's default anyway.
 """
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import TYPE_CHECKING
 
 import openwakeword
@@ -39,7 +40,11 @@ def create_wake_model() -> Model:
     return Model(wakeword_models=[WAKE_WORD_MODEL])
 
 
-def listen_for_wake_word(mic: "MicStream", model: Model) -> float:
+def listen_for_wake_word(
+    mic: MicStream,
+    model: Model,
+    on_poll: Callable[[], bool] | None = None,
+) -> float:
     """Block until the wake word fires once, then return its score.
 
     The caller (jarvis/main.py) logs this score on every detection -- real
@@ -47,6 +52,10 @@ def listen_for_wake_word(mic: "MicStream", model: Model) -> float:
     tuning and false-positive tracking (PLAN.md section 5) actually run on.
     """
     while True:
+        if on_poll is not None and on_poll():
+            # The callback may pause the mic to speak a timer alarm. Clear the
+            # wake model's rolling audio state before resuming detection.
+            model.reset()
         frame = mic.read_frame()
         prediction = model.predict(frame)
         score = prediction.get(WAKE_WORD_MODEL, 0.0)

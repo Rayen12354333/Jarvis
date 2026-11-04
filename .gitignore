@@ -6,6 +6,7 @@ __pycache__/
 *.egg-info/
 .pytest_cache/
 .ruff_cache/
+build/
 logs/
 # Phase 5/6 credentials -- never commit these
 token.json

@@ -4,6 +4,7 @@
 
 python-dotenv
 numpy
+Pillow
 
 # Wake word -- openWakeWord (no signup/key needed; Picovoice killed its free
 # tier in mid-2026, see PLAN.md section 2). ai-edge-litert is required on
@@ -22,6 +23,7 @@ ai-edge-litert
 
 # Audio
 sounddevice
+webrtcvad-wheels
 
 # Speech-to-text
 faster-whisper
@@ -31,8 +33,11 @@ faster-whisper
 # for a far more natural voice, see PLAN.md).
 kokoro-mlx
 
-# LLM fallback (Gemini, free tier -- no signup cost, see PROGRESS.md)
+# Conversational brain (Gemini primary, GroqCloud second provider) + web research
 google-genai
+ddgs
+httpx
+lxml
 
 # macOS menu bar app + media keys (Phase 3/4)
 rumps

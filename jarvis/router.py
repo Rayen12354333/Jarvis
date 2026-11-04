@@ -1,7 +1,8 @@
-"""Handler registry: one regex pattern -> one function, decorator-based.
+"""Legacy handler registry: one regex pattern -> one function.
 
-This is the whole point of the architecture (PLAN.md section 3): adding a
-command means adding a file in handlers/, never touching this file or main.py.
+The live voice and text paths now send every utterance to one stateful Gemini
+conversation. This registry remains for old tests and as scaffolding while
+deterministic computer actions are migrated into explicit Gemini tools.
 """
 from __future__ import annotations
 

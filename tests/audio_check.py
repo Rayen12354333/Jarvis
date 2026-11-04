@@ -30,7 +30,10 @@ def check_input_devices() -> None:
     print("\n[1/3] Input devices:")
     devices = list_input_devices()
     if not devices:
-        print("  X No input devices found. Check System Settings > Privacy & Security > Microphone.")
+        print(
+            "  X No input devices found. "
+            "Check System Settings > Privacy & Security > Microphone."
+        )
         sys.exit(1)
     for d in devices:
         print(f"  - {d['name']}  ({d['max_input_channels']} ch, {d['default_samplerate']:.0f} Hz)")
@@ -76,7 +79,12 @@ def check_wake_model() -> None:
 
 def check_mic_levels(seconds: float = 3.0) -> None:
     print(f"\n[3/3] Recording {seconds:.0f}s -- say something out loud:")
-    recording = sd.rec(int(seconds * SAMPLE_RATE), samplerate=SAMPLE_RATE, channels=1, dtype="int16")
+    recording = sd.rec(
+        int(seconds * SAMPLE_RATE),
+        samplerate=SAMPLE_RATE,
+        channels=1,
+        dtype="int16",
+    )
     for remaining in range(int(seconds), 0, -1):
         print(f"  {remaining}...", end="\r")
         time.sleep(1)

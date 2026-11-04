@@ -33,8 +33,18 @@ WAKE_THRESHOLD = float(_get("WAKE_THRESHOLD", "0.5"))
 
 # --- Audio ---------------------------------------------------------
 SAMPLE_RATE = 16_000  # Hz -- fixed by openWakeWord and what we feed Whisper
-SILENCE_TIMEOUT_S = 1.0  # stop recording after this much silence
-MAX_RECORDING_S = 8.0  # hard cap on a single utterance
+# Give the user time to start talking after Jarvis finishes its prompt.  This
+# is deliberately separate from SILENCE_TIMEOUT_S: the latter detects when an
+# utterance has ended, while this one controls how patient Jarvis is before it
+# decides that nobody answered.
+SPEECH_START_TIMEOUT_S = float(_get("SPEECH_START_TIMEOUT_S", "10.0"))
+SILENCE_TIMEOUT_S = float(_get("SILENCE_TIMEOUT_S", "0.9"))
+MAX_RECORDING_S = float(_get("MAX_RECORDING_S", "15.0"))
+# Prevent a playing video or podcast from becoming the recorded request. Jarvis
+# restores the previous mute state before transcribing or answering.
+MUTE_OUTPUT_WHILE_LISTENING = str(
+    _get("MUTE_OUTPUT_WHILE_LISTENING", "true")
+).casefold() in {"1", "true", "yes", "on"}
 
 # --- Speech-to-text ---------------------------------------------------------
 WHISPER_MODEL = _get("WHISPER_MODEL", "base.en")
@@ -46,14 +56,17 @@ WHISPER_COMPUTE_TYPE = _get("WHISPER_COMPUTE_TYPE", "int8")
 VOICE_NAME = _get("VOICE_NAME", "am_adam")
 VOICE_SPEED = float(_get("VOICE_SPEED", "1.0"))  # >1 faster, <1 slower
 
-# --- LLM fallback (Gemini) ---------------------------------------------
-# Used only when no regex handler in router.py matches -- known commands
-# (time, volume, etc.) never touch this, so they stay fast and free. Picked
-# Gemini over Claude/GPT for the free tier: 1500 requests/day, no credit
-# card (aistudio.google.com/apikey). See PROGRESS.md for the cost/model
-# comparison this was based on.
+# --- Conversational brain (Gemini) ----------------------------------------
+# Every utterance in a wake session goes through Gemini. Computer operations
+# are still constrained to explicit, locally validated actions.
 GEMINI_API_KEY = _get("GEMINI_API_KEY")
-GEMINI_MODEL = _get("GEMINI_MODEL", "gemini-2.5-flash-lite")
+GEMINI_MODEL = _get("GEMINI_MODEL", "gemini-3.5-flash-lite")
+
+# --- Optional second brain (GroqCloud) -------------------------------------
+# Gemini remains the normal controller. A Groq-hosted model is available for
+# deliberate second opinions and as a fallback when Gemini is unavailable.
+GROQ_API_KEY = _get("GROQ_API_KEY")
+GROQ_MODEL = _get("GROQ_MODEL", "openai/gpt-oss-120b")
 
 # --- Logging ---------------------------------------------------------
 LOG_DIR = Path(os.path.expanduser("~/Library/Logs/jarvis"))

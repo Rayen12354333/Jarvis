@@ -1,12 +1,18 @@
 # Jarvis — Build Plan
 
+Current product scope, implemented upgrades, and release gates are documented in
+[PRODUCT.md](./PRODUCT.md). It supersedes the original scope below where they
+differ: browser/screen assistance and persistent Work Sessions now exist; hand
+gestures remain deferred. This file retains the earlier architecture rationale.
+
 A voice-activated assistant for macOS. Wake word, system/media control, email
 summaries, and a daily academic briefing.
 
 **Team:** 2 developers
 **Target machine:** MacBook Air/Pro, Apple M2, 8 GB unified memory
 **Language:** Python 3.11
-**Status:** Phase 0 (environment setup)
+**Status:** Phase 2 complete; architecture corrections below supersede the
+original handler-first design where noted.
 
 ---
 
@@ -31,9 +37,9 @@ persona customization.
 |---|---|
 | Hands-free wake word | openWakeWord always-on listener, no hotkey |
 | Ignores background noise | Wake word gate + Whisper confidence threshold |
-| Fast simple commands | Regex fast-path, no LLM in the hot loop |
-| Local-first / private | Wake word, STT, and TTS all run on-device |
-| Extensible | Decorator-based handler registry, one file per feature |
+| Natural conversation | One stateful Gemini chat per wake session |
+| Hybrid local/cloud | Wake word, STT, TTS local; transcript/replies via Gemini |
+| Extensible | Gemini language layer plus explicit local action tools |
 | Runs persistently | Menu bar app (rumps) + launchd login item |
 
 ---
@@ -103,10 +109,32 @@ actually loaded and fails loudly if it's onnxruntime, instead of only
 checking that the model dict has keys -- so this can't silently regress
 again.
 
-**No LLM in the hot path.**
-8 GB unified memory means a resident language model competes with the browser.
-Volume and media commands are deterministic — they get regex matching and a
-keypress. We revisit a small model only for the email summary, in Phase 5.
+**Correction #3, Sept 2026 -- Gemini is now the conversational brain.**
+Real usage showed the handler-first flow felt rigid and lost follow-up context.
+The user explicitly chose to send every utterance to Gemini. One cloud-backed,
+stateful chat now owns greetings, answers, conversational handoffs, context, and
+continue/wait/sleep interpretation. This still avoids a resident local LLM on
+the 8 GB machine. Deterministic Mac actions remain local and must be exposed as
+explicit tools; Gemini may request them but must not pretend they succeeded.
+
+**Correction #4, Sept 2026 -- keyless web research instead of native grounding.**
+Gemini's native Google Search grounding is unavailable on this API project's
+free tier and returned `429 RESOURCE_EXHAUSTED`; enabling it requires a billed
+project. Jarvis instead lets Gemini request focused queries through the keyless
+`ddgs` client, then safely reads selected public HTML pages with `httpx`/`lxml`.
+At least one authoritative page must be opened before a researched answer is
+accepted. Private/local network targets are blocked and web content is always
+treated as untrusted evidence.
+
+**Correction #5, Sept 2026 -- selective GroqCloud second-model reasoning.**
+A user-provided `gsk_` credential belongs to GroqCloud, not xAI's similarly
+named Grok product. Jarvis keeps Gemini as its stateful controller and uses
+GroqCloud's `openai/gpt-oss-120b` only for explicit second opinions, difficult
+reasoning when Gemini requests help, and answer-only fallback during Gemini
+failures. Calling both providers on every prompt would add cost, latency, and
+conflicting answers, so Gemini instead receives the second result as advisory
+evidence and produces one synthesis. GroqCloud never receives the local-action
+schema and cannot control the Mac during fallback.
 
 **[Superseded -- see correction above] Porcupine over openWakeWord.**
 openWakeWord ships a pretrained "hey jarvis" model and needs no account, but
@@ -117,8 +145,8 @@ spare. Porcupine is native arm64, ~20 KB of model RAM, and ships free
 predefined wake phrases. It needs a free AccessKey, but detection still runs
 entirely on-device. openWakeWord stays as our fallback.
 
-**Idle memory budget:** wake word ~10 MB, Whisper base.en ~200 MB (loaded on
-demand), TTS 0 MB (macOS `say`), app ~100 MB. Under 400 MB total.
+**Idle memory budget:** wake word stays small; Whisper and Kokoro load on demand.
+There is still no resident local LLM competing for the M2's 8 GB of memory.
 
 ---
 
@@ -131,21 +159,19 @@ mic stream (16 kHz)
 [ wake word ]  openWakeWord — always on, ~10 MB
       │  detected "hey jarvis"
       ▼
-[ recorder ]   capture until ~1s silence, max 8s
+[ recorder ]   wait up to 10s for speech, capture until ~1.5s silence, max 15s
       │
       ▼
 [ STT ]        faster-whisper base.en, loaded on demand
       │  text
       ▼
-[ router ]     match text against registered handler patterns
-      │
-      ├──► handlers/media.py     volume, play/pause, mute
-      ├──► handlers/email.py     Gmail summary
-      ├──► handlers/briefing.py  Calendar + SUIS
-      └──► handlers/misc.py      timers, weather
+[ Gemini ]     stateful chat: answer + continue/wait/sleep action
+      │  optional explicit tool/research request
+      ├──► web research          search + bounded public-page reads
+      └──► local tools           media, email, briefing, timers
       │
       ▼
-[ speak ]      macOS `say`
+[ speak ]      local Kokoro-82M neural voice
 ```
 
 ### Directory layout
@@ -160,7 +186,9 @@ jarvis/
 │   ├── wake.py           # openWakeWord wrapper -- wake phrase is "hey jarvis"
 │   ├── stt.py            # Whisper wrapper
 │   ├── speak.py          # TTS
-│   ├── router.py         # registry + dispatch
+│   ├── llm.py            # stateful Gemini conversation engine
+│   ├── web.py            # keyless search + safe public-page reader
+│   ├── router.py         # legacy registry / future tool plumbing
 │   └── handlers/
 │       ├── __init__.py   # auto-imports every handler module
 │       ├── media.py
@@ -175,7 +203,12 @@ jarvis/
 └── README.md
 ```
 
-### The handler contract
+### Legacy handler contract (superseded for live routing)
+
+This registry remains in the repository, but `main.py` no longer routes spoken
+text through regexes. New deterministic capabilities should become explicit
+Gemini-callable tools. The old contract below is retained as implementation
+history and may be reused inside that tool layer.
 
 Every feature is one file. Adding a command never touches the core loop.
 
@@ -251,26 +284,47 @@ openWakeWord model + inference backend, and reports a non-silent peak amplitude.
 false fires per hour of background conversation.
 
 ### Phase 2 — Listen, transcribe, route
-- `audio.py`: record after wake until ~1s of silence, cap at 8s
+- `audio.py`: wait up to 10s for speech to begin, then record until ~1.5s of
+  silence, capped at 15s after speech starts
 - `stt.py`: faster-whisper `base.en`, `int8` compute type, model loaded once
-- `router.py`: the registry, decorator, and dispatch
-- `speak.py`: `say` wrapper, non-blocking
-- A `handlers/misc.py` with "what time is it" to prove the wiring
+- `llm.py`: one stateful Gemini controller per wake session, returning structured
+  speech/transitions and selectively consulting the GroqCloud second provider
+- `groq.py`: GPT-OSS 120B second opinions plus answer-only provider fallback
+- `speak.py`: local Kokoro-82M neural TTS, non-blocking by default
+- A Gemini text prompt such as "what time is it" to prove the full wiring
 
 **Checkpoint:** "Jarvis, what time is it" → spoken answer in under ~3 seconds.
 
 ### Phase 3 — Media control (feature #1, the real milestone)
-- Volume up/down/mute/set via `osascript set volume`
+- Volume up/down/mute/set via `osascript set volume` — **done**
 - Play/pause/next/previous via system-defined media key events (pyobjc), so it
   drives whatever is playing rather than one hardcoded app
+- Spotify-native play/pause/next/previous/now-playing — **done**. System-wide
+  media keys for non-Spotify players remain.
+- Named Spotify track resolution and direct playback — **done**. Public lookup
+  results are restricted to validated Spotify track URLs before AppleScript sees
+  the resulting URI.
 - Phrase variants: "turn it up", "louder", "pause", "stop the music"
+- Expose each deterministic action as a Gemini-callable local tool; Gemini
+  interprets the phrasing, while Python performs and confirms the real action
 
 **Checkpoint:** Adjust volume and pause a YouTube video from across the room
 without touching the keyboard.
 
+### App control foundation — implemented early
+- Resolve model-requested app names against installed macOS `.app` bundles,
+  then launch with argument-safe subprocess calls
+- Search inside Spotify, YouTube, or the default web browser
+- Let Gemini chain up to three validated actions, such as open Spotify + play
+- Add OAuth-backed app integrations separately when account data, playlists,
+  or automatic named-result selection is needed
+- Create real Apple Notes in the default account/folder and require a returned
+  note ID before reporting success — **done**
+
 ### Phase 4 — Always running
-- `rumps` menu bar app: status icon, pause listening, quit
-- launchd plist for start-on-login
+- `rumps` menu bar app: custom template icon, status, start/stop listening,
+  logs, and quit — **done**
+- launchd plist for start-on-login — **done**
 - Log rotation to `~/Library/Logs/jarvis/`
 
 **Checkpoint:** Reboot the Mac; Jarvis is listening without anyone starting it.
@@ -298,7 +352,20 @@ without touching the keyboard.
 classes, deadlines, and calendar events.
 
 ### Phase 7 — Extras (feature #4)
-Timers, weather, unit conversion, quick web lookup. Each is one handler file.
+Timers and quick web lookup are now implemented early as explicit tools. Weather
+works through current web research; dedicated weather and unit-conversion tools
+can be added later if latency or reliability calls for them.
+
+### Screen vision — first safe version implemented early
+- Explicit 5-second to 10-minute authorization, defaulting to two minutes
+- One fresh main-display screenshot per visual question; temporary file deleted
+- Multimodal Gemini analysis in the same conversational session
+- Screen pixels treated as untrusted evidence, not executable instructions
+- Active-app scrolling and one visible-target click after a screenshot no more
+  than 15 seconds old; coordinates are normalized for Retina displays
+- Current limitation: on-demand snapshots only, no continuous system-audio/video
+  ingestion; macOS Screen Recording and Accessibility permissions must be
+  granted to the launcher
 
 ---
 
@@ -308,15 +375,14 @@ The phases are sequential, but the work inside them isn't. Suggested tracks
 once Phase 2 lands:
 
 **Track A — Voice core**
-`audio.py`, `wake.py`, `stt.py`, `speak.py`, `router.py`, latency tuning,
+`audio.py`, `wake.py`, `stt.py`, `speak.py`, `llm.py`, latency tuning,
 false-positive reduction, the menu bar app.
 
 **Track B — Integrations**
-`handlers/*`, Google OAuth setup, the SUIS scraper, credential storage,
-caching.
+Gemini-callable local tools, Google OAuth setup, the SUIS scraper, credential
+storage, and caching.
 
-Track B can develop and test handlers by calling the router directly with text,
-no microphone needed:
+Track B can exercise the full Gemini path with text, no microphone needed:
 
 ```bash
 python -m jarvis.main --text "summarize my emails"

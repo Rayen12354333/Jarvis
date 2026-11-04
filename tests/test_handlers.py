@@ -14,5 +14,10 @@ def test_what_time_is_it() -> None:
     assert "It's" in reply
 
 
-def test_unmatched_text_returns_none() -> None:
-    assert dispatch("asdkfjalksdjf nonsense") is None
+def test_unmatched_text_uses_llm_fallback(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "jarvis.llm.ask_llm", lambda text: f"LLM answered: {text}"
+    )
+    assert dispatch("asdkfjalksdjf nonsense") == (
+        "LLM answered: asdkfjalksdjf nonsense"
+    )
